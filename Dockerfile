@@ -1,9 +1,8 @@
 FROM ubuntu:24.04
 
-WORKDIR /root/ReCoNet
-VOLUME ["/root/ReCoNet"]
-
 RUN apt update && apt upgrade && apt install -y wget \
+    # Create directories
+    && mkdir -p ~/ReCoNet \
     && mkdir -p ~/datasets \
     # Install Miniconda
     && mkdir -p ~/miniconda3 \
