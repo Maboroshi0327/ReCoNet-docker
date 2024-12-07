@@ -1,5 +1,5 @@
 #!/bin/bash
 
-echo "Tag name:"
+echo -n "Tag name: "
 read -r tag
 docker build -t $tag .
