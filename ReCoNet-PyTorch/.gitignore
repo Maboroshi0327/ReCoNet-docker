@@ -1,0 +1,4 @@
+__pycache__/
+
+runs/output/*
+!runs/output/reconet_epoch_9.pth

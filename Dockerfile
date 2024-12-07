@@ -15,4 +15,5 @@ RUN apt update && apt upgrade && apt install -y wget \
     && conda init --all \
     # Install PyTorch
     && conda install -y python=3.8 \
-    && conda install -y pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+    && conda install -y pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia \
+    && pip install scikit-image opencv-python matplotlib
