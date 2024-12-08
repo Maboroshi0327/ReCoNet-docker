@@ -2,7 +2,14 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt update && apt upgrade && apt install -y wget \
+RUN apt update && apt upgrade && apt install -y \
+    # Install dependencies
+    wget \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     # Create directories
     && mkdir -p ~/ReCoNet \
     && mkdir -p ~/datasets \

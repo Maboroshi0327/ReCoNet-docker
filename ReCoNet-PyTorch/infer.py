@@ -19,8 +19,8 @@ video_capture = cv2.VideoCapture(args.source)
 model = ReCoNet().to(device)
 model.load_state_dict(torch.load(args.model))
 
-images = os.listdir('alley_2')
-images.sort()
+# images = os.listdir('alley_2')
+# images.sort()
 # for i in images:
 #     frame = cv2.imread('alley_2/'+i)
 while(True):
