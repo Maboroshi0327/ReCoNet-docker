@@ -69,7 +69,7 @@ for epoch in range(epochs):
         feature_flow[:, 1, :, :] *= float(feature_map1.shape[3]) / flow.shape[3]
 
         feature_mask = nn.functional.interpolate(
-            mask.view(batch_size, 1, 640, 360), size=feature_map1.shape[2:], mode="bilinear"
+            mask.view(mask.shape[0], 1, 640, 360), size=feature_map1.shape[2:], mode="bilinear"
         )
         warped_fmap = warp(feature_map1, feature_flow)
 
@@ -85,8 +85,7 @@ for epoch in range(epochs):
         input_term = 0.2126 * input_term[:, 0, :, :] + 0.7152 * input_term[:, 1, :, :] + 0.0722 * input_term[:, 2, :, :]
         input_term = input_term.unsqueeze(1).expand(-1, 3, -1, -1)
 
-        mask = mask.unsqueeze(1)
-        o_temporal_loss = torch.sum(mask * L2distancematrix(output_term, input_term))
+        o_temporal_loss = torch.sum(mask.unsqueeze(1) * L2distancematrix(output_term, input_term))
         o_temporal_loss *= LAMBDA_O / (img1.numel())
 
         content_loss = 0
