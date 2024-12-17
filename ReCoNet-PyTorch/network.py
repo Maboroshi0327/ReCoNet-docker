@@ -8,7 +8,7 @@ from collections import namedtuple
 class Vgg16(torch.nn.Module):
     def __init__(self, device='cpu'):
         super(Vgg16, self).__init__()
-        vgg_pretrained_features = vgg16(pretrained=True).features
+        vgg_pretrained_features = vgg16(weights="VGG16_Weights.IMAGENET1K_V1").features
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
