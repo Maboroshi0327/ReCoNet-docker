@@ -4,7 +4,7 @@ from typing import Union
 import cv2
 import numpy as np
 from tqdm import tqdm
-from PIL import Image, ImageFilter
+from PIL import Image
 
 import torch
 import torch.nn.functional as F
@@ -27,7 +27,6 @@ def visualize_flow(flow):
     hsv[..., 0] = ang * 180 / np.pi / 2
     hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
     return rgb
 
 
@@ -48,7 +47,7 @@ def warp(x, flo, padding_mode="zeros"):
     vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :] / max(W - 1, 1) - 1.0
     vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :] / max(H - 1, 1) - 1.0
     vgrid = vgrid.permute(0, 2, 3, 1)
-    output = F.grid_sample(x, vgrid, mode="nearest", padding_mode=padding_mode, align_corners=False)
+    output = F.grid_sample(x, vgrid, mode="bilinear", padding_mode=padding_mode, align_corners=False)
     return output
 
 
@@ -84,17 +83,14 @@ class FlyingThings3D(Dataset):
                 for i in range(9):
                     self.frame.append((files[i], files[i + 1]))
                     pbar.update(1)
-                break
 
         # optical_flow
         for abcpath in ["A/", "B/", "C/"]:
             for folder in os.listdir(path_flow + abcpath):
-                into_future_files = list_files(path_flow + abcpath + folder + "/into_future/left/")
                 into_past_files = list_files(path_flow + abcpath + folder + "/into_past/left/")
                 for i in range(9):
                     self.flow.append(into_past_files[i + 1])
                     pbar.update(1)
-                break
 
         # mask
         for abcpath in ["A/", "B/", "C/"]:
@@ -103,7 +99,6 @@ class FlyingThings3D(Dataset):
                 for i in range(9):
                     self.motion.append(files[i + 1])
                     pbar.update(1)
-                break
 
         self.length = len(self.frame)
         self.resolution = resolution
@@ -165,9 +160,9 @@ if __name__ == "__main__":
     # Test FlyingThings3D
     fly = FlyingThings3D("/root/datasets/flyingthings3d/", train=True)
 
-    pbar = tqdm(range(9), desc="Test FlyingThings3D", leave=True)
+    pbar = tqdm(range(10), desc="Test FlyingThings3D", leave=True)
     for i in pbar:
-        img1, img2, flow_into_past, mask = fly.__getitem__(i * 3)
+        img1, img2, flow_into_past, mask = fly[i * 1000]
 
         # warp image & visualize flow
         next_img = warp(img1.unsqueeze(0), flow_into_past.unsqueeze(0)).squeeze(0)
@@ -182,15 +177,19 @@ if __name__ == "__main__":
         next_img = to_pil(next_img)
         warp_mask = to_pil(warp_mask)
 
+        # create directory if it doesn't exist
+        save_dir = f"./datasets_images/{i + 1}/"
+        os.makedirs(save_dir, exist_ok=True)
+
         # delete old images
-        files = list_files(f"./datasets_images/{i + 1}/")
+        files = list_files(save_dir)
         for f in files:
             os.remove(f)
-
+        
         # save images
-        img1.save(f"./datasets_images/{i + 1}/img1.png")
-        img2.save(f"./datasets_images/{i + 1}/img2.png")
-        # mask.save(f"./datasets_images/{i + 1}/mask.png")
-        next_img.save(f"./datasets_images/{i + 1}/next_img.png")
-        warp_mask.save(f"./datasets_images/{i + 1}/warp_mask.png")
-        # cv2.imwrite(f"./datasets_images/{i + 1}/flow.png", flow_rgb)
+        img1.save(os.path.join(save_dir, "img1.png"))
+        img2.save(os.path.join(save_dir, "img2.png"))
+        # mask.save(os.path.join(save_dir, "mask.png"))
+        next_img.save(os.path.join(save_dir, "next_img.png"))
+        warp_mask.save(os.path.join(save_dir, "warp_mask.png"))
+        # cv2.imwrite(os.path.join(save_dir, "flow.png"), flow_rgb)
