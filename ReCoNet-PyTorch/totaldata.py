@@ -107,16 +107,16 @@ class FlyingChairsDataset(Dataset):
         num = toString7(idx)
         img1 = io.imread(self.path + num + "-img_0.png")
         img2 = io.imread(self.path + num + "-img_1.png")
-        mask = io.imread(self.path + num + "-mb_01.png")
+        mask = io.imread(self.path + num + "-mb_10.png")
         img1 = torch.from_numpy(transform.resize(img1, (360, 640))).to(device).permute(2, 0, 1).float()
         img2 = torch.from_numpy(transform.resize(img2, (360, 640))).to(device).permute(2, 0, 1).float()
         mask = torch.from_numpy(transform.resize(mask, (360, 640))).to(device).float()
-        flow = read(self.path + num + "-flow_01.flo")
+        flow = read(self.path + num + "-flow_10.flo")
         # bilinear interpolation is default
         originalflow = torch.from_numpy(flow)
         flow = torch.from_numpy(transform.resize(flow, (360, 640))).to(device).permute(2, 0, 1).float()
-        flow[0, :, :] *= float(flow.shape[1]) / originalflow.shape[1]
-        flow[1, :, :] *= float(flow.shape[2]) / originalflow.shape[2]
+        flow[0, :, :] *= float(flow.shape[1]) / originalflow.shape[0]
+        flow[1, :, :] *= float(flow.shape[2]) / originalflow.shape[1]
 
         if self.transform:
             # complete later
@@ -143,3 +143,28 @@ class ConsolidatedDataset(Dataset):
             return self.mpi.__getitem__(idx)
         else:
             return self.fc.__getitem__(idx - len(self.mpi))
+
+
+if __name__ == "__main__":
+    dataset = FlyingChairsDataset("../datasets/FlyingChairs2/")
+    img1, img2, mask, flow = dataset[3000]
+
+    import cv2
+    from datasets import visualize_flow
+    flow_rgb = visualize_flow(flow)
+    # flow = -flow
+
+    from utilities import warp
+    img_warped = warp(img1.unsqueeze(0), flow.unsqueeze(0))
+    img_warped = img_warped.squeeze(0)
+
+    to_pil = transforms.ToPILImage()
+    img1 = to_pil(img1)
+    img2 = to_pil(img2)
+    img_warped = to_pil(img_warped)
+    mask = to_pil(mask)
+    img1.save("img1.png")
+    img2.save("img2.png")
+    img_warped.save("img_warped.png")
+    mask.save("mask.png")
+    cv2.imwrite("flow.png", flow_rgb)
