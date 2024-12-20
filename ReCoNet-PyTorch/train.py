@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import flowlib
 from PIL import Image
 
-from utilities import *
+from utilities_old import *
 from network import *
 from totaldata import *
 

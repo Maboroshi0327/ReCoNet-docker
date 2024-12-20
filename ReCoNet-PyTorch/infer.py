@@ -7,7 +7,7 @@ from PIL import Image
 import cv2
 import numpy as np
 from network import ReCoNet
-from utilities import *
+from utilities_old import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--source', required=True, help='Video file to process')

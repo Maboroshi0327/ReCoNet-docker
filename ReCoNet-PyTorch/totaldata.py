@@ -154,7 +154,7 @@ if __name__ == "__main__":
     flow_rgb = visualize_flow(flow)
     # flow = -flow
 
-    from utilities import warp
+    from utilities_old import warp
     img_warped = warp(img1.unsqueeze(0), flow.unsqueeze(0))
     img_warped = img_warped.squeeze(0)
 
