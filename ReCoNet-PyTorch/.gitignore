@@ -1,5 +1,6 @@
 __pycache__/
 
 runs/output/*
+!runs/output/FlyingThings3D_epoch_10_batchSize_1.pth
 
 datasets_images/
