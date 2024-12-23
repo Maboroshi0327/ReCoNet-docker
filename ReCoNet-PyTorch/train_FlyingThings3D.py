@@ -14,7 +14,7 @@ from utilities import gram_matrix, vgg_normalize, warp
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-epoch_start = 1
+epoch_start = 11
 epochs = 50
 batch_size = 1
 LR = 1e-3
@@ -30,7 +30,7 @@ IMG_SIZE = (640, 360)
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        FlyingThings3D("D:\\Datasets\\flyingthings3d\\"),
+        FlyingThings3D("../datasets/SceneFlowDatasets/flyingthings3d/"),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
@@ -42,7 +42,7 @@ def train():
     resume = input("Resume training? y/n: ").lower() == "y"
     if resume:
         model_name = input("Model Name: ")
-        model.load_state_dict(torch.load(model_name))
+        model.load_state_dict(torch.load(model_name, weights_only=True))
 
     # Optimizer and loss
     adam = optim.Adam(model.parameters(), lr=LR)
@@ -64,8 +64,8 @@ def train():
     style_GM = [gram_matrix(f) for f in style_features]
 
     # Training loop
-    for epoch in range(epoch_start - 1, epochs):
-        batch_iterator = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}", leave=True)
+    for epoch in range(epoch_start, epochs + 1):
+        batch_iterator = tqdm(dataloader, desc=f"Epoch {epoch}/{epochs}", leave=True)
         for itr, (img1, img2, flow, mask) in enumerate(batch_iterator):
             img1 = img1.to(device)
             img2 = img2.to(device)
@@ -174,7 +174,7 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(model.state_dict(), f"runs/output/FlyingThings3D_epoch_{epoch+1}_batchSize_{batch_size}.pth")
+        torch.save(model.state_dict(), f"runs/output/FlyingThings3D_epoch_{epoch}_batchSize_{batch_size}.pth")
 
 
 if __name__ == "__main__":
