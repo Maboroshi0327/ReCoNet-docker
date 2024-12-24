@@ -18,12 +18,11 @@ epoch_start = 1
 epochs = 50
 batch_size = 1
 LR = 1e-3
-ALPHA = 1e13
-BETA = 1e10
-GAMMA = 3e-2
-LAMBDA_O = 1e6
-LAMBDA_F = 1e4
-STYLE_WEIGHTS = [1e-1, 1e0, 1e1, 5e0]
+ALPHA = 1
+BETA = 10
+GAMMA = 1e-3
+LAMBDA_F = 1e7
+LAMBDA_O = 2e3
 IMG_SIZE = (640, 360)
 
 
@@ -107,8 +106,8 @@ def train():
             # Feature-Map-Level Temporal Loss
             b, c, h, w = feature_map2.size()
             f_temporal_loss = torch.sum(feature_mask * L2distanceMatrix(feature_map2, warped_fmap))
-            f_temporal_loss *= LAMBDA_F
             f_temporal_loss *= 1 / (b * c * h * w)
+            f_temporal_loss *= LAMBDA_F
 
             # Output-Level Temporal Loss
             warped_style = warp(styled_img1, flow)
@@ -124,8 +123,8 @@ def train():
 
             b, c, h, w = img2.size()
             o_temporal_loss = torch.sum(mask * (L2distanceMatrix(output_term, input_term)))
-            o_temporal_loss *= LAMBDA_O
             o_temporal_loss *= 1 / (b * c * h * w)
+            o_temporal_loss *= LAMBDA_O
 
             # Content Loss
             b, c, h, w = styled_features1[2].size()
@@ -136,12 +135,11 @@ def train():
 
             # Style Loss
             style_loss = 0
-            for i, weight in enumerate(STYLE_WEIGHTS):
-                gram_s = style_GM[i]
+            for i, gram_s in enumerate(style_GM):
                 gram_img1 = gram_matrix(styled_features1[i])
                 gram_img2 = gram_matrix(styled_features2[i])
-                style_loss += weight * L2distance(gram_img1, gram_s.expand(gram_img1.size()))
-                style_loss += weight * L2distance(gram_img2, gram_s.expand(gram_img2.size()))
+                style_loss += L2distance(gram_img1, gram_s.expand(gram_img1.size()))
+                style_loss += L2distance(gram_img2, gram_s.expand(gram_img2.size()))
             style_loss *= BETA
 
             # Regularization Loss
