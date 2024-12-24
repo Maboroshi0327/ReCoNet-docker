@@ -139,7 +139,7 @@ class Monkaa(Dataset):
         self.motion = list()
 
         # progress bar
-        pbar = tqdm(desc="Initial FlyingThings3D", total=8640 * 3)
+        pbar = tqdm(desc="Initial Monkaa", total=8640 * 3)
 
         for folder in os.listdir(path_frame):
             files = list_files(path_frame + folder + "/left/")

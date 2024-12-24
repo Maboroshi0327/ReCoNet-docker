@@ -29,7 +29,7 @@ IMG_SIZE = (640, 360)
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        Monkaa("C:\\Datasets\\monkaa\\"),
+        Monkaa("../datasets/SceneFlowDatasets/monkaa/"),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
