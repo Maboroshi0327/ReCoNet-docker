@@ -14,20 +14,18 @@ from utilities import list_files, visualize_flow, warp
 
 
 class FlyingThings3D(Dataset):
-    def __init__(self, path: str, train: bool = True, resolution: tuple = (640, 360)):
+    def __init__(self, path: str, resolution: tuple = (640, 360)):
         """
         path -> Path to the location where the "frames_finalpass", "optical_flow" and "motion_boundaries" folders are kept inside the FlyingThings3D folder. \\
-        train -> True if training dataset is required, False if testing dataset is required. \\
         resolution -> Resolution of the images to be returned. Width first, then height.
         """
-        path_frame = path + "frames_finalpass/" + ("TRAIN/" if train else "TEST/")
-        path_flow = path + "optical_flow/" + ("TRAIN/" if train else "TEST/")
-        path_motion = path + "motion_boundaries/" + ("TRAIN/" if train else "TEST/")
+        path_frame = path + "frames_finalpass/TRAIN/"
+        path_flow = path + "optical_flow/TRAIN/"
+        path_motion = path + "motion_boundaries/TRAIN/"
 
         assert os.path.exists(path_frame), f"Path {path_frame} does not exist."
         assert os.path.exists(path_flow), f"Path {path_flow} does not exist."
         assert os.path.exists(path_motion), f"Path {path_motion} does not exist."
-        assert train in [True, False], "train must be a boolean."
         assert len(resolution) == 2 and isinstance(resolution, tuple), "Resolution must be a tuple of 2 integers."
 
         self.path = path
@@ -165,7 +163,7 @@ class Monkaa(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Union[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         idx -> Index of the image pair, optical flow and mask to be returned.
         """
@@ -215,13 +213,41 @@ class Monkaa(Dataset):
         return img1, img2, flow_into_past, mask
 
 
+class TotalData(Dataset):
+    def __init__(self, path: Union[str, list], resolution: tuple = (640, 360)):
+        """
+        path -> Path to the location where the "monkaa" and "flyingthings3d" folders are kept.
+                If path is a list, then the first element is the path to the "monkaa" folder and the second element is the path to the "flyingthings3d" folder.
+        resolution -> Resolution of the images to be returned. Width first, then height.
+        """
+        if isinstance(path, str):
+            self.monkaa = Monkaa(path + "monkaa/", resolution)
+            self.flyingthings3d = FlyingThings3D(path + "flyingthings3d/", resolution)
+        elif isinstance(path, list):
+            self.monkaa = Monkaa(path[0], resolution)
+            self.flyingthings3d = FlyingThings3D(path[1], resolution)
+        else:  # pragma: no cover
+            raise ValueError("Path must be a string or a list of strings.")
+
+        self.length = len(self.monkaa) + len(self.flyingthings3d)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int) -> Union[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        if idx < len(self.monkaa):
+            return self.monkaa[idx]
+        else:
+            return self.flyingthings3d[idx - len(self.monkaa)]
+
+
 if __name__ == "__main__":
-    # Test FlyingThings3D
-    data = Monkaa("C:\\Datasets\\monkaa\\")
+    # Test TotalData
+    data = TotalData(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"])
 
     pbar = tqdm(range(10), desc="Test Dataset", leave=True)
     for i in pbar:
-        img1, img2, flow_into_past, mask = data[i * 500]
+        img1, img2, flow_into_past, mask = data[i * 2000]
 
         # warp image & visualize flow
         next_img = warp(img1.unsqueeze(0), flow_into_past.unsqueeze(0)).squeeze(0)
