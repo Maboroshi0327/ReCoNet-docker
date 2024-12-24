@@ -118,13 +118,110 @@ class FlyingThings3D(Dataset):
         return img1, img2, flow_into_past, mask
 
 
+class Monkaa(Dataset):
+    def __init__(self, path: str, resolution: tuple = (640, 360)):
+        """
+        path -> Path to the location where the "frames_finalpass", "optical_flow" and "motion_boundaries" folders are kept inside the Monkaa folder. \\
+        resolution -> Resolution of the images to be returned. Width first, then height.
+        """
+        path_frame = path + "frames_finalpass/"
+        path_flow = path + "optical_flow/"
+        path_motion = path + "motion_boundaries/"
+
+        assert os.path.exists(path_frame), f"Path {path_frame} does not exist."
+        assert os.path.exists(path_flow), f"Path {path_flow} does not exist."
+        assert os.path.exists(path_motion), f"Path {path_motion} does not exist."
+        assert len(resolution) == 2 and isinstance(resolution, tuple), "Resolution must be a tuple of 2 integers."
+
+        self.path = path
+        self.frame = list()
+        self.flow = list()
+        self.motion = list()
+
+        # progress bar
+        pbar = tqdm(desc="Initial FlyingThings3D", total=8640 * 3)
+
+        for folder in os.listdir(path_frame):
+            files = list_files(path_frame + folder + "/left/")
+            for i in range(len(files) - 1):
+                self.frame.append((files[i], files[i + 1]))
+                pbar.update(1)
+
+        for folder in os.listdir(path_flow):
+            files = list_files(path_flow + folder + "/into_past/left/")
+            for i in range(len(files) - 1):
+                self.flow.append(files[i + 1])
+                pbar.update(1)
+
+        for folder in os.listdir(path_motion):
+            files = list_files(path_motion + folder + "/into_future/left/")
+            for i in range(len(files) - 1):
+                self.motion.append(files[i + 1])
+                pbar.update(1)
+
+        self.length = len(self.frame)
+        self.resolution = resolution
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int):
+        """
+        idx -> Index of the image pair, optical flow and mask to be returned.
+        """
+        # convert to tensor
+        toTensor = transforms.ToTensor()
+        gaussianBlur = transforms.GaussianBlur(kernel_size=3, sigma=1.0)
+
+        # read image
+        img_path = self.frame[idx]
+        img1 = Image.open(img_path[0]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+        img2 = Image.open(img_path[1]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+        img1 = toTensor(img1)
+        img2 = toTensor(img2)
+
+        # read flow
+        flow_into_past = toTensor(read(self.flow[idx]).copy())[:-1]
+        originalflowshape = flow_into_past.shape
+
+        flow_into_past = F.interpolate(
+            flow_into_past.unsqueeze(0),
+            size=(self.resolution[1], self.resolution[0]),
+            mode="bilinear",
+            align_corners=False,
+        ).squeeze(0)
+
+        flow_into_past[0] *= flow_into_past.shape[1] / originalflowshape[1]
+        flow_into_past[1] *= flow_into_past.shape[2] / originalflowshape[2]
+
+        # read motion boundaries
+        motion = Image.open(self.motion[idx]).resize(self.resolution, Image.BILINEAR)
+        motion = toTensor(motion).squeeze(0)
+        motion[motion != 0] = 1
+        motion = 1 - motion
+
+        # create mask
+        img_warp = warp(img1.unsqueeze(0), flow_into_past.unsqueeze(0)).squeeze(0)
+        img_warp_blur = gaussianBlur(img_warp)
+        img2_blur = gaussianBlur(img2)
+
+        warp_error = torch.abs(img_warp_blur - img2_blur)
+        warp_error = torch.sum(warp_error, dim=0)
+
+        mask = warp_error < 0.1
+        mask = mask.float()
+        mask = mask * motion
+
+        return img1, img2, flow_into_past, mask
+
+
 if __name__ == "__main__":
     # Test FlyingThings3D
-    fly = FlyingThings3D("/root/datasets/flyingthings3d/", train=True)
+    data = Monkaa("C:\\Datasets\\monkaa\\")
 
-    pbar = tqdm(range(10), desc="Test FlyingThings3D", leave=True)
+    pbar = tqdm(range(10), desc="Test Dataset", leave=True)
     for i in pbar:
-        img1, img2, flow_into_past, mask = fly[i * 1000]
+        img1, img2, flow_into_past, mask = data[i * 500]
 
         # warp image & visualize flow
         next_img = warp(img1.unsqueeze(0), flow_into_past.unsqueeze(0)).squeeze(0)
