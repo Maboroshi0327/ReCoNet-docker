@@ -18,18 +18,18 @@ epoch_start = 1
 epochs = 50
 batch_size = 1
 LR = 1e-3
-ALPHA = 1
+ALPHA = 10
 BETA = 1
-GAMMA = 1
-LAMBDA_F = 1
-LAMBDA_O = 1
+GAMMA = 1e-7
+LAMBDA_F = 10
+LAMBDA_O = 10
 IMG_SIZE = (640, 360)
 
 
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        TotalData("../datasets/SceneFlowDatasets/"),
+        TotalData(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"]),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
