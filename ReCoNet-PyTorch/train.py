@@ -18,18 +18,18 @@ epoch_start = 1
 epochs = 50
 batch_size = 1
 LR = 1e-3
-ALPHA = 1e7
-BETA = 10
-GAMMA = 1e-3
-LAMBDA_F = 1e7
-LAMBDA_O = 1e5
+ALPHA = 1
+BETA = 1
+GAMMA = 1
+LAMBDA_F = 1
+LAMBDA_O = 1
 IMG_SIZE = (640, 360)
 
 
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        TotalData(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"]),
+        TotalData("../datasets/SceneFlowDatasets/"),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
@@ -106,7 +106,8 @@ def train():
             # Feature-Map-Level Temporal Loss
             b, c, h, w = feature_map2.size()
             f_temporal_loss = torch.sum(feature_mask * L2distanceMatrix(feature_map2, warped_fmap))
-            f_temporal_loss *= 1 / (b * c * h * w)
+            non_zero_count = torch.nonzero(feature_mask).shape[0]
+            f_temporal_loss *= 1 / non_zero_count
             f_temporal_loss *= LAMBDA_F
 
             # Output-Level Temporal Loss
@@ -123,7 +124,8 @@ def train():
 
             b, c, h, w = img2.size()
             o_temporal_loss = torch.sum(mask * (L2distanceMatrix(output_term, input_term)))
-            o_temporal_loss *= 1 / (b * c * h * w)
+            non_zero_count = torch.nonzero(mask).shape[0]
+            o_temporal_loss *= 1 / non_zero_count
             o_temporal_loss *= LAMBDA_O
 
             # Content Loss
@@ -131,7 +133,7 @@ def train():
             content_loss = 0
             content_loss += L2distance(styled_features1[2], img_features1[2])
             content_loss += L2distance(styled_features2[2], img_features2[2])
-            content_loss *= ALPHA / (c * h * w)
+            content_loss *= ALPHA
 
             # Style Loss
             style_loss = 0
