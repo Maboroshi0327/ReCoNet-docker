@@ -1,6 +1,7 @@
 import os
 from typing import Union
 
+import cv2
 from tqdm import tqdm
 from PIL import Image
 
@@ -19,6 +20,7 @@ class FlyingThings3D(Dataset):
         path -> Path to the location where the "frames_finalpass", "optical_flow" and "motion_boundaries" folders are kept inside the FlyingThings3D folder. \\
         resolution -> Resolution of the images to be returned. Width first, then height.
         """
+        super().__init__()
         path_frame = path + "frames_finalpass/TRAIN/"
         path_flow = path + "optical_flow/TRAIN/"
         path_motion = path + "motion_boundaries/TRAIN/"
@@ -122,6 +124,7 @@ class Monkaa(Dataset):
         path -> Path to the location where the "frames_finalpass", "optical_flow" and "motion_boundaries" folders are kept inside the Monkaa folder. \\
         resolution -> Resolution of the images to be returned. Width first, then height.
         """
+        super().__init__()
         path_frame = path + "frames_finalpass/"
         path_flow = path + "optical_flow/"
         path_motion = path + "motion_boundaries/"
@@ -213,7 +216,33 @@ class Monkaa(Dataset):
         return img1, img2, flow_into_past, mask
 
 
-class TotalData(Dataset):
+class Coco2014(Dataset):
+    def __init__(self, path: str, resolution: tuple = (256, 256)):
+        """
+        path -> Path to the location where the "coco2014" folder is kept. \\
+        resolution -> Resolution of the images to be returned. Width first, then height.
+        """
+        super().__init__()
+        self.path = os.path.join(path, "train2014")
+        self.resolution = resolution
+
+        self.paths = list()
+        files = list_files(self.path)
+        for file in files:
+            self.paths.append(file)
+
+        self.length = len(self.paths)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        img = Image.open(self.paths[idx]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+        toTensor = transforms.ToTensor()
+        return toTensor(img)
+
+
+class FlyingThings3D_Monkaa(Dataset):
     def __init__(self, path: Union[str, list], resolution: tuple = (640, 360)):
         """
         path -> Path to the location where the "monkaa" and "flyingthings3d" folders are kept.
@@ -241,11 +270,35 @@ class TotalData(Dataset):
             return self.flyingthings3d[idx - len(self.monkaa)]
 
 
-if __name__ == "__main__":
-    # Test TotalData
-    data = TotalData(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"])
+def test_coco2014():
+    data = Coco2014("C:\\Datasets\\coco2014")
+    print(len(data))
 
-    pbar = tqdm(range(10), desc="Test Dataset", leave=True)
+    pbar = tqdm(range(10), desc="Test Coco2014", leave=True)
+    for i in pbar:
+        img = data[i * 2000]
+
+        # convert to PIL
+        to_pil = transforms.ToPILImage()
+        img = to_pil(img)
+
+        # create directory if it doesn't exist
+        save_dir = f"./datasets_images/{i + 1}/"
+        os.makedirs(save_dir, exist_ok=True)
+
+        # delete old images
+        files = list_files(save_dir)
+        for f in files:
+            os.remove(f)
+
+        # save images
+        img.save(os.path.join(save_dir, "img.png"))
+
+
+def test_FlyingThings3D_Monkaa():
+    data = FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"])
+
+    pbar = tqdm(range(10), desc="Test FlyingThings3D_Monkaa", leave=True)
     for i in pbar:
         img1, img2, flow_into_past, mask = data[i * 2000]
 
@@ -274,7 +327,12 @@ if __name__ == "__main__":
         # save images
         img1.save(os.path.join(save_dir, "img1.png"))
         img2.save(os.path.join(save_dir, "img2.png"))
-        # mask.save(os.path.join(save_dir, "mask.png"))
+        mask.save(os.path.join(save_dir, "mask.png"))
         next_img.save(os.path.join(save_dir, "next_img.png"))
         warp_mask.save(os.path.join(save_dir, "warp_mask.png"))
-        # cv2.imwrite(os.path.join(save_dir, "flow.png"), flow_rgb)
+        cv2.imwrite(os.path.join(save_dir, "flow.png"), flow_rgb)
+
+
+if __name__ == "__main__":
+    # test_coco2014()
+    test_FlyingThings3D_Monkaa()

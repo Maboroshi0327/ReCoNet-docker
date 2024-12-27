@@ -8,7 +8,7 @@ from PIL import Image
 from tqdm import tqdm
 from collections import OrderedDict
 
-from datasets import TotalData
+from datasets import FlyingThings3D_Monkaa, Coco2014
 from network import ReCoNet, Vgg16
 from utilities import gram_matrix, vgg_normalize, warp
 
@@ -16,10 +16,10 @@ from utilities import gram_matrix, vgg_normalize, warp
 device = "cuda" if torch.cuda.is_available() else "cpu"
 epoch_start = 1
 epochs = 50
-batch_size = 1
+batch_size = 4
 LR = 1e-3
-ALPHA = 10
-BETA = 1
+ALPHA = 1e5
+BETA = 1e10
 GAMMA = 1e-7
 LAMBDA_F = 10
 LAMBDA_O = 10
@@ -29,7 +29,7 @@ IMG_SIZE = (640, 360)
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        TotalData(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"]),
+        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"]),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
@@ -53,8 +53,8 @@ def train():
 
     # Style image
     toTensor = transforms.ToTensor()
-    style_names = ("autoportrait", "candy", "composition", "edtaonisl", "udnie")
-    style_img_path = "./styles/" + style_names[2] + ".jpg"
+    style_names = ("autoportrait", "candy", "composition", "edtaonisl", "starry_night", "udnie")
+    style_img_path = "./styles/" + style_names[4] + ".jpg"
     style = Image.open(style_img_path).convert("RGB").resize(IMG_SIZE, Image.BILINEAR)
     style = toTensor(style).unsqueeze(0).to(device)
 
@@ -104,7 +104,6 @@ def train():
             feature_mask = feature_mask.expand(-1, feature_map1.shape[1], -1, -1)
 
             # Feature-Map-Level Temporal Loss
-            b, c, h, w = feature_map2.size()
             f_temporal_loss = torch.sum(feature_mask * L2distanceMatrix(feature_map2, warped_fmap))
             non_zero_count = torch.nonzero(feature_mask).shape[0]
             f_temporal_loss *= 1 / non_zero_count
@@ -122,14 +121,12 @@ def train():
             mask = mask.unsqueeze(1)
             mask = mask.expand(-1, img2.shape[1], -1, -1)
 
-            b, c, h, w = img2.size()
             o_temporal_loss = torch.sum(mask * (L2distanceMatrix(output_term, input_term)))
             non_zero_count = torch.nonzero(mask).shape[0]
             o_temporal_loss *= 1 / non_zero_count
             o_temporal_loss *= LAMBDA_O
 
             # Content Loss
-            b, c, h, w = styled_features1[2].size()
             content_loss = 0
             content_loss += L2distance(styled_features1[2], img_features1[2])
             content_loss += L2distance(styled_features2[2], img_features2[2])
@@ -174,7 +171,7 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(model.state_dict(), f"runs/output/Total_epoch_{epoch}_batchSize_{batch_size}.pth")
+        torch.save(model.state_dict(), f"runs/output/FlyingThings3D-Monkaa_epoch_{epoch}_batchSize_{batch_size}.pth")
 
 
 if __name__ == "__main__":
