@@ -1,6 +1,6 @@
 __pycache__/
 
-runs/output/*
-!runs/output/FlyingThings3D_epoch_50_batchSize_1.pth
+models/*
+!models/models_output_path
 
 datasets_images/

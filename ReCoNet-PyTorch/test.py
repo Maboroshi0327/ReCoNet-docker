@@ -1,21 +1,16 @@
-import os
 import torch
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-from totaldata import *
-from skimage import io, transform
 
-data = ConsolidatedDataset(MPI_path="../datasets/MPI-Sintel-complete/", FC_path="../datasets/FlyingChairs2/")
-print(len(data))
-img1, img2, mask, flow = data[230]
+from datasets import Coco2014, toPil
+from network import ReCoNet
 
-# Check the data type and shape of the images
-print(img1.size(), img2.size(), mask.size(), flow.size())
-print(img1.dtype, img2.dtype)
+data = Coco2014("C:\\Datasets\\coco2014")
+img = data[100].unsqueeze(0)
 
-# Convert th images to numpy arrays
-img1 = (img1.squeeze().permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
-img2 = (img2.squeeze().permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+model = ReCoNet()
+model.load_state_dict(torch.load("./models/Coco2014_epoch_2_batchSize_4.pth", weights_only=True))
 
-io.imsave("img1.png", img1)
-io.imsave("img2.png", img2)
+_, output = model(img)
+img = toPil(img[0].byte())
+img.show()
+outimg = toPil(output[0].byte())
+outimg.show()

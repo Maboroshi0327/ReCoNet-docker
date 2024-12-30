@@ -44,6 +44,39 @@ def warp(x, flo, padding_mode="zeros"):
     return output
 
 
+def flow_warp_mask(flo01, flo10, padding_mode="zeros"):
+    flo01 = flo01.unsqueeze(0)
+    flo10 = flo10.unsqueeze(0)
+    B, C, H, W = flo01.size()
+
+    # Mesh grid
+    xx = torch.arange(0, W).view(1, -1).repeat(H, 1)
+    yy = torch.arange(0, H).view(-1, 1).repeat(1, W)
+    xx = xx.view(1, 1, H, W).repeat(B, 1, 1, 1)
+    yy = yy.view(1, 1, H, W).repeat(B, 1, 1, 1)
+    grid = torch.cat((xx, yy), 1).float()
+    if flo01.is_cuda:
+        grid = grid.cuda()
+    vgrid = grid + flo10
+    flo01 = grid + flo01
+
+    # Scale grid to [-1,1]
+    vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :] / max(W - 1, 1) - 1.0
+    vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :] / max(H - 1, 1) - 1.0
+    vgrid = vgrid.permute(0, 2, 3, 1)
+    flow_warp = F.grid_sample(flo01, vgrid, mode="bilinear", padding_mode=padding_mode, align_corners=False)
+
+    # create mask
+    flow_warp = flow_warp.squeeze(0)
+    grid = grid.squeeze(0)
+    warp_error = torch.abs(flow_warp - grid)
+    warp_error = torch.sum(warp_error, dim=0)
+    mask = warp_error < 2
+    mask = mask.float()
+
+    return mask
+
+
 def gram_matrix(y: torch.Tensor):
     (b, ch, h, w) = y.size()
     features = y.view(b, ch, w * h)
@@ -56,4 +89,5 @@ def vgg_normalize(batch: torch.Tensor):
     # normalize using imagenet mean and std
     mean = batch.new_tensor([0.485, 0.456, 0.406]).view(-1, 1, 1)
     std = batch.new_tensor([0.229, 0.224, 0.225]).view(-1, 1, 1)
+    batch = batch.div_(255.0)
     return (batch - mean) / std

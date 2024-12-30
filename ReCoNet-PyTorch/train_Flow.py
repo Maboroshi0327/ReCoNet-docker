@@ -2,80 +2,70 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
 from PIL import Image
 from tqdm import tqdm
 from collections import OrderedDict
 
-from datasets import FlyingThings3D_Monkaa, Coco2014
+from datasets import FlyingThings3D_Monkaa, toTensor255
 from network import ReCoNet, Vgg16
 from utilities import gram_matrix, vgg_normalize, warp
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 epoch_start = 1
-epochs = 50
-batch_size = 4
+epoch_end = 50
+batch_size = 2
 LR = 1e-3
 ALPHA = 1e5
 BETA = 1e10
-GAMMA = 1e-7
-LAMBDA_F = 10
-LAMBDA_O = 10
+GAMMA = 1e-2
+LAMBDA_F = 1e6
+LAMBDA_O = 1e10
 IMG_SIZE = (640, 360)
 
 
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"]),
+        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"], IMG_SIZE),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
         prefetch_factor=2,
     )
     model = ReCoNet().to(device)
-
-    # Resume training
-    # resume = input("Resume training? y/n: ").lower() == "y"
-    # if resume:
-    #     model_name = input("Model Name: ")
-    #     model.load_state_dict(torch.load(model_name, weights_only=True))
+    # model_path = "./models/FlyingThings3D-Monkaa_epoch_2_batchSize_2.pth"
+    # model.load_state_dict(torch.load(model_path, weights_only=True))
 
     # Optimizer and loss
     adam = optim.Adam(model.parameters(), lr=LR)
     L2distance = nn.MSELoss(reduction="mean")
     L2distanceMatrix = nn.MSELoss(reduction="none")
     vgg16 = Vgg16().to(device)
-    for param in vgg16.parameters():
-        param.requires_grad = False
 
     # Style image
-    toTensor = transforms.ToTensor()
-    style_names = ("autoportrait", "candy", "composition", "edtaonisl", "starry_night", "udnie")
-    style_img_path = "./styles/" + style_names[4] + ".jpg"
-    style = Image.open(style_img_path).convert("RGB").resize(IMG_SIZE, Image.BILINEAR)
-    style = toTensor(style).unsqueeze(0).to(device)
+    style_img_path = "./styles/composition.jpg"
+    style = Image.open(style_img_path).convert("RGB")
+    style = toTensor255(style).unsqueeze(0).to(device)
 
     # Style image Gram Matrix
     style_features = vgg16(vgg_normalize(style))
     style_GM = [gram_matrix(f) for f in style_features]
 
     # Training loop
-    for epoch in range(epoch_start, epochs + 1):
-        batch_iterator = tqdm(dataloader, desc=f"Epoch {epoch}/{epochs}", leave=True)
-        for itr, (img1, img2, flow, mask) in enumerate(batch_iterator):
+    for epoch in range(epoch_start, epoch_end + 1):
+        model.train()
+
+        batch_iterator = tqdm(dataloader, desc=f"Epoch {epoch}/{epoch_end}", leave=True)
+        for img1, img2, flow, mask in batch_iterator:
             img1 = img1.to(device)
             img2 = img2.to(device)
             mask = mask.to(device)
             flow = flow.to(device)
 
-            # Zero gradients and limit learning rate
+            # Zero gradients
             adam.zero_grad()
-            if (itr + 1) % 500 == 0:
-                for param in adam.param_groups:
-                    param["lr"] = max(param["lr"] / 1.2, 1e-4)
 
             # Forward pass
             feature_map1, styled_img1 = model(img1)
@@ -88,8 +78,8 @@ def train():
             img2 = vgg_normalize(img2)
             styled_features1 = vgg16(styled_img1)
             styled_features2 = vgg16(styled_img2)
-            img_features1 = vgg16(img1)
-            img_features2 = vgg16(img2)
+            content_features1 = vgg16(img1)
+            content_features2 = vgg16(img2)
 
             # Warp feature maps
             feature_flow = nn.functional.interpolate(flow, size=feature_map1.shape[2:], mode="bilinear")
@@ -128,8 +118,8 @@ def train():
 
             # Content Loss
             content_loss = 0
-            content_loss += L2distance(styled_features1[2], img_features1[2])
-            content_loss += L2distance(styled_features2[2], img_features2[2])
+            content_loss += L2distance(styled_features1[2], content_features1[2])
+            content_loss += L2distance(styled_features2[2], content_features2[2])
             content_loss *= ALPHA
 
             # Style Loss
@@ -137,8 +127,8 @@ def train():
             for i, gram_s in enumerate(style_GM):
                 gram_img1 = gram_matrix(styled_features1[i])
                 gram_img2 = gram_matrix(styled_features2[i])
-                style_loss += L2distance(gram_img1, gram_s.expand(gram_img1.size()))
-                style_loss += L2distance(gram_img2, gram_s.expand(gram_img2.size()))
+                style_loss += L2distance(gram_img1, gram_s.expand(gram_img1.shape[0], -1, -1))
+                style_loss += L2distance(gram_img2, gram_s.expand(gram_img1.shape[0], -1, -1))
             style_loss *= BETA
 
             # Regularization Loss
@@ -171,7 +161,7 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(model.state_dict(), f"runs/output/FlyingThings3D-Monkaa_epoch_{epoch}_batchSize_{batch_size}.pth")
+        torch.save(model.state_dict(), f"./models/FlyingThings3D-Monkaa_epoch_{epoch}_batchSize_{batch_size}.pth")
 
 
 if __name__ == "__main__":
