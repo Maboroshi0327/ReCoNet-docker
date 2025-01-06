@@ -4,9 +4,10 @@ import numpy as np
 from torchvision.models import vgg16
 from collections import namedtuple
 
+
 # From https://github.com/pytorch/examples/blob/master/fast_neural_style/neural_style/vgg.py
 class Vgg16(torch.nn.Module):
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         super(Vgg16, self).__init__()
         vgg_pretrained_features = vgg16(weights="VGG16_Weights.IMAGENET1K_V1").features
         self.slice1 = torch.nn.Sequential()
@@ -21,7 +22,7 @@ class Vgg16(torch.nn.Module):
             self.slice3.add_module(str(x), vgg_pretrained_features[x].to(device))
         for x in range(16, 23):
             self.slice4.add_module(str(x), vgg_pretrained_features[x].to(device))
-        
+
         for param in self.parameters():
             param.requires_grad = False
 
@@ -34,15 +35,17 @@ class Vgg16(torch.nn.Module):
         h_relu3_3 = h
         h = self.slice4(h)
         h_relu4_3 = h
-        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'relu4_3'])
+        vgg_outputs = namedtuple("VggOutputs", ["relu1_2", "relu2_2", "relu3_3", "relu4_3"])
         out = vgg_outputs(h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3)
         return out
 
 
 # Rest of the file based on https://github.com/irsisyphus/reconet
 
+
 class SelectiveLoadModule(torch.nn.Module):
     """Only load layers in trained models with the same name."""
+
     def __init__(self):
         super(SelectiveLoadModule, self).__init__()
 
@@ -59,6 +62,7 @@ class SelectiveLoadModule(torch.nn.Module):
 
 class ConvLayer(torch.nn.Module):
     """Reflection padded convolution layer."""
+
     def __init__(self, in_channels, out_channels, kernel_size, stride, bias=True):
         super(ConvLayer, self).__init__()
         reflection_padding = int(np.floor(kernel_size / 2))
@@ -78,7 +82,7 @@ class ConvTanh(ConvLayer):
 
     def forward(self, x):
         out = super(ConvTanh, self).forward(x)
-        return self.tanh(out/255) * 150 + 255/2
+        return self.tanh(out / 255) * 150 + 255 / 2
 
 
 class ConvInstRelu(ConvLayer):
@@ -99,6 +103,7 @@ class UpsampleConvLayer(torch.nn.Module):
     This method gives better results compared to ConvTranspose2d.
     ref: http://distill.pub/2016/deconv-checkerboard/
     """
+
     def __init__(self, in_channels, out_channels, kernel_size, stride, upsample=None):
         super(UpsampleConvLayer, self).__init__()
         self.upsample = upsample
@@ -146,10 +151,10 @@ class ResidualBlock(torch.nn.Module):
 
 
 class ReCoNet(SelectiveLoadModule):
-    def __init__(self):
+    def __init__(self, input_frame_num=1):
         super(ReCoNet, self).__init__()
 
-        self.conv1 = ConvInstRelu(3, 32, kernel_size=9, stride=1)
+        self.conv1 = ConvInstRelu(3 * input_frame_num, 32, kernel_size=9, stride=1)
         self.conv2 = ConvInstRelu(32, 64, kernel_size=3, stride=2)
         self.conv3 = ConvInstRelu(64, 128, kernel_size=3, stride=2)
 
