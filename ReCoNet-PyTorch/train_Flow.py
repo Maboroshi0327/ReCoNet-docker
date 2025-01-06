@@ -16,11 +16,12 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 epoch_start = 1
 epoch_end = 2
 batch_size = 2
+input_frame_num = 4
 LR = 1e-3
 ALPHA = 1e5
 BETA = 1e10
 GAMMA = 1e-2
-LAMBDA_F = 1e14
+LAMBDA_F = 1e12
 LAMBDA_O = 1e7
 IMG_SIZE = (640, 360)
 
@@ -28,13 +29,13 @@ IMG_SIZE = (640, 360)
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"], IMG_SIZE),
+        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"], IMG_SIZE, input_frame_num),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
         prefetch_factor=2,
     )
-    model = ReCoNet().to(device)
+    model = ReCoNet(input_frame_num).to(device)
 
     # Optimizer and loss
     adam = optim.Adam(model.parameters(), lr=LR)
@@ -50,6 +51,10 @@ def train():
     # Style image Gram Matrix
     style_features = vgg16(vgg_normalize(style))
     style_GM = [gram_matrix(f) for f in style_features]
+
+    # warp index
+    index = (input_frame_num - 1) * 3
+    index = [i for i in range(index, index + 3)]
 
     # Training loop
     for epoch in range(epoch_start, epoch_end + 1):
@@ -72,8 +77,8 @@ def train():
             # Normalize and use VGG16 to get features
             styled_img1 = vgg_normalize(styled_img1)
             styled_img2 = vgg_normalize(styled_img2)
-            img1 = vgg_normalize(img1)
-            img2 = vgg_normalize(img2)
+            img1 = vgg_normalize(img1[:, index])
+            img2 = vgg_normalize(img2[:, index])
             styled_features1 = vgg16(styled_img1)
             styled_features2 = vgg16(styled_img2)
             content_features1 = vgg16(img1)
