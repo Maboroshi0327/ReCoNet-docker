@@ -14,14 +14,14 @@ from utilities import gram_matrix, vgg_normalize, warp
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 epoch_start = 1
-epoch_end = 50
+epoch_end = 2
 batch_size = 2
 LR = 1e-3
 ALPHA = 1e5
 BETA = 1e10
 GAMMA = 1e-2
-LAMBDA_F = 1e6
-LAMBDA_O = 1e10
+LAMBDA_F = 1e14
+LAMBDA_O = 1e7
 IMG_SIZE = (640, 360)
 
 
@@ -35,8 +35,6 @@ def train():
         prefetch_factor=2,
     )
     model = ReCoNet().to(device)
-    # model_path = "./models/FlyingThings3D-Monkaa_epoch_2_batchSize_2.pth"
-    # model.load_state_dict(torch.load(model_path, weights_only=True))
 
     # Optimizer and loss
     adam = optim.Adam(model.parameters(), lr=LR)
@@ -45,7 +43,7 @@ def train():
     vgg16 = Vgg16().to(device)
 
     # Style image
-    style_img_path = "./styles/composition.jpg"
+    style_img_path = "./styles/mosaic.jpg"
     style = Image.open(style_img_path).convert("RGB")
     style = toTensor255(style).unsqueeze(0).to(device)
 
@@ -161,7 +159,7 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(model.state_dict(), f"./models/FlyingThings3D-Monkaa_epoch_{epoch}_batchSize_{batch_size}.pth")
+        torch.save(model.state_dict(), f"./models/Flow_epoch_{epoch}_batchSize_{batch_size}.pth")
 
 
 if __name__ == "__main__":
