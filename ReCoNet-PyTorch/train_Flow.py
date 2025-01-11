@@ -14,11 +14,11 @@ from utilities import gram_matrix, vgg_normalize, warp
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 epoch_start = 1
-epoch_end = 2
+epoch_end = 6
 batch_size = 2
 input_frame_num = 4
 LR = 1e-3
-ALPHA = 1e5
+ALPHA = 2e5
 BETA = 1e10
 GAMMA = 1e-2
 LAMBDA_F = 1e12

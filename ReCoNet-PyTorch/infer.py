@@ -19,11 +19,11 @@ def frame_to_tensor(frame):
 
 if __name__ == "__main__":
     model = ReCoNet(input_frame_num).to(device)
-    model.load_state_dict(torch.load("./models/mosaic1.pth", weights_only=True))
+    model.load_state_dict(torch.load("./models/Flow_epoch_6_batchSize_2.pth", weights_only=True))
     # model.load_state_dict(torch.load("./models/mosaic_noFTL1.pth", weights_only=True))
     # model.load_state_dict(torch.load("./models/Coco2014_epoch_2_batchSize_4.pth", weights_only=True))
 
-    video_path = "D:\\Datasets\\video2.mp4"
+    video_path = "D:\\Datasets\\video1.mp4"
     cap = cv2.VideoCapture(video_path)
 
     # Read the first few frames
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
         # Display the result
         cv2.imshow("Frame", output_image)
-        if cv2.waitKey(20) & 0xFF == ord("q"):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
         # Read the next frame
