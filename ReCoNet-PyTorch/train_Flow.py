@@ -29,7 +29,7 @@ IMG_SIZE = (640, 360)
 def train():
     # Datasets and model
     dataloader = DataLoader(
-        FlyingThings3D_Monkaa(["C:\\Datasets\\monkaa\\", "D:\\Datasets\\flyingthings3d\\"], IMG_SIZE, input_frame_num),
+        FlyingThings3D_Monkaa("../datasets", IMG_SIZE, input_frame_num),
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
