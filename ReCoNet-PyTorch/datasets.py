@@ -7,22 +7,36 @@ from PIL import Image
 
 import torch
 import torch.nn.functional as F
-from torchvision import transforms
 from torch.utils.data import Dataset
 
 from flowlib import read
-from utilities import list_files, visualize_flow, warp, flow_warp_mask
+from utilities import list_files, visualize_flow, warp, flow_warp_mask, toTensor255, toTensor, toPil
 
 
-toTensor255 = transforms.Compose(
-    [
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.mul(255)),
-    ]
-)
-toTensor = transforms.ToTensor()
-toPil = transforms.ToPILImage()
-gaussianBlur = transforms.GaussianBlur(kernel_size=3, sigma=1.0)
+class Coco2014(Dataset):
+    def __init__(self, path: str, resolution: tuple = (256, 256)):
+        """
+        path -> Path to the location where the "coco2014" folder is kept. \\
+        resolution -> Resolution of the images to be returned. Width first, then height.
+        """
+        super().__init__()
+        self.path = os.path.join(path, "train2014")
+        self.resolution = resolution
+
+        self.paths = list()
+        files = list_files(self.path)
+        for file in files:
+            self.paths.append(file)
+
+        self.length = len(self.paths)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        img = Image.open(self.paths[idx]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+        img = toTensor255(img)
+        return img
 
 
 class FlyingThings3D(Dataset):

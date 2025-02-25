@@ -150,7 +150,7 @@ class ResidualBlock(torch.nn.Module):
         return out
 
 
-class ReCoNet(SelectiveLoadModule):
+class ReCoNet(torch.nn.Module):
     def __init__(self, input_frame_num=1):
         super(ReCoNet, self).__init__()
 
@@ -177,12 +177,103 @@ class ReCoNet(SelectiveLoadModule):
         x = self.res2(x)
         x = self.res3(x)
         x = self.res4(x)
-        x = self.res5(x)
 
+        x = self.res5(x)
         features = x
 
         x = self.deconv1(x)
+        sd1 = x
+
         x = self.deconv2(x)
         x = self.deconv3(x)
 
-        return (features, x)
+        return (sd1, features, x)
+
+
+class ReCoNetSD1(torch.nn.Module):
+    def __init__(self, input_frame_num=1):
+        super().__init__()
+
+        self.conv1 = ConvInstRelu(3 * input_frame_num, 32, kernel_size=9, stride=1)
+        self.conv2 = ConvInstRelu(32, 64, kernel_size=3, stride=2)
+
+        # SD1
+        self.conv3_sd = ConvInstRelu(64, 64, kernel_size=3, stride=2)
+
+        self.res1_sd = ResidualBlock(64, 64)
+        self.res2_sd = ResidualBlock(64, 64)
+        self.res3_sd = ResidualBlock(64, 64)
+        self.res4_sd = ResidualBlock(64, 64)
+        self.res5_sd = ResidualBlock(64, 64)
+
+        self.deconv1_sd = UpsampleConvInstRelu(64, 64, kernel_size=3, stride=1, upsample=2)
+        # SD1
+
+        self.deconv2 = UpsampleConvInstRelu(64, 32, kernel_size=3, stride=1, upsample=2)
+        self.deconv3 = ConvTanh(32, 3, kernel_size=9, stride=1)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+
+        # SD1
+        x = self.conv3_sd(x)
+        sd2 = x
+
+        x = self.res1_sd(x)
+        x = self.res2_sd(x)
+        x = self.res3_sd(x)
+        x = self.res4_sd(x)
+        x = self.res5_sd(x)
+        features = x
+
+        x = self.deconv1_sd(x)
+        sd = x
+        # SD1
+
+        x = self.deconv2(x)
+        x = self.deconv3(x)
+
+        return (sd2, sd, features, x)
+
+
+class ReCoNetSD2(torch.nn.Module):
+    def __init__(self, input_frame_num=1):
+        super().__init__()
+
+        # SD2
+        self.conv1_sd2 = ConvInstRelu(3 * input_frame_num, 16, kernel_size=9, stride=1)
+        self.conv2_sd2 = ConvInstRelu(16, 32, kernel_size=3, stride=2)
+        self.conv3_sd2 = ConvInstRelu(32, 64, kernel_size=3, stride=2)
+        # SD2
+
+        self.res1_sd = ResidualBlock(64, 64)
+        self.res2_sd = ResidualBlock(64, 64)
+        self.res3_sd = ResidualBlock(64, 64)
+        self.res4_sd = ResidualBlock(64, 64)
+        self.res5_sd = ResidualBlock(64, 64)
+
+        # SD2
+        self.deconv1_sd2 = UpsampleConvInstRelu(64, 32, kernel_size=3, stride=1, upsample=2)
+        self.deconv2_sd2 = UpsampleConvInstRelu(32, 16, kernel_size=3, stride=1, upsample=2)
+        self.deconv3_sd2 = ConvTanh(16, 3, kernel_size=9, stride=1)
+        # SD2
+
+    def forward(self, x):
+        x = self.conv1_sd2(x)
+        x = self.conv2_sd2(x)
+        x = self.conv3_sd2(x)
+        sd = x
+
+        x = self.res1_sd(x)
+        x = self.res2_sd(x)
+        x = self.res3_sd(x)
+        x = self.res4_sd(x)
+        x = self.res5_sd(x)
+        features = x
+
+        x = self.deconv1_sd2(x)
+        x = self.deconv2_sd2(x)
+        x = self.deconv3_sd2(x)
+
+        return (sd, features, x)
